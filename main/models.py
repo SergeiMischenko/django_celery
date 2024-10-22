@@ -2,10 +2,10 @@ import uuid
 
 from django.contrib.auth.models import (AbstractBaseUser, BaseUserManager,
                                         PermissionsMixin)
-from django.core.mail import send_mail
 from django.db import models
 from django.db.models import signals
-from django.urls import reverse
+
+from main.tasks import send_verification_email
 
 
 class UserAccountManager(BaseUserManager):
@@ -62,15 +62,8 @@ class User(AbstractBaseUser):
 
 def user_post_save(sender, instance, signal, *args, **kwargs):
     if not instance.is_verified:
-        send_mail(
-            "Verify your  account",
-            "Follow this link to verify your account: "
-            "http://localhost:8000%s"
-            % reverse("verify", kwargs={"uuid": str(instance.verification_uuid)}),
-            "admin@localhost.ru",
-            [instance.email],
-            fail_silently=False,
-        )
+        # Send verification email
+        send_verification_email.delay(instance.pk)
 
 
 signals.post_save.connect(user_post_save, sender=User)
